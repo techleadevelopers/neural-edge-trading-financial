@@ -2,9 +2,11 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8" />
-  <title>Neural Edge – Signals</title>
+  <title>Neural Edge – Sinais de Mercado</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="assets/style.css" />
+  <!-- Font Awesome para Ícones Premium -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <!-- Lightweight Charts -->
   <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <link rel="icon" href="data:," />
@@ -12,28 +14,78 @@
 </head>
 <body>
   <header>
-    <h1>Signals – NEAR/USDT</h1>
+    <h1><i class="fas fa-brain" style="margin-right: 8px; color: #22d3ee;"></i>Neural Edge – Sinais de Mercado (Modo Escuro)</h1>
     <div>
       <nav>
-        <a href="index.html">Home</a>
-        <a href="signals.html">Sinais</a>
-        <a href="settings.html">Config</a>
+        <a href="index.html"><i class="fas fa-home" style="margin-right: 4px;"></i>Início</a>
+        <a href="signals.html"><i class="fas fa-signal" style="margin-right: 4px;"></i>Sinais</a>
+        <a href="settings.html"><i class="fas fa-cog" style="margin-right: 4px;"></i>Configurações</a>
       </nav>
     </div>
-    <div id="status"></div>
+    <div>
+      <button id="btnSettings" class="btn-secondary" style="margin-right:8px"><i class="fas fa-cog"></i> Configurações</button>
+      <span id="status"></span>
+    </div>
   </header>
 
   <main>
-    <div id="chart" style="height: 420px;"></div>
-    <section id="signalBox" class="card">
-      <h3>Último Sinal</h3>
-      <pre id="signalPre">{carregando...}</pre>
-      <button id="btnTrain">Treinar baseline</button>
-      <button id="btnPredict">Predizer agora</button>
+    <section class="card">
+      <div class="symbols" id="symbolsBar"></div>
+      <div id="chart" style="height: 420px;"></div>
+    </section>
+    <section class="card">
+      <div class="ux-grid">
+        <div class="panel regime" id="regimePanel">
+          <h4><i class="fas fa-chart-line" style="margin-right: 6px; color: #22d3ee;"></i>Condição do Mercado</h4>
+          <div class="reg-badge off" id="regimeBadge2">carregando...</div>
+          <div class="altbar"><span id="altbarFill" style="width:0%"></span></div>
+          <div class="reg-desc" id="regimeDesc">Quando há <b>apetite por risco</b>, o mercado tende a buscar ganhos mais altos (RISK ON). Em momentos de <b>aversão ao risco</b>, prevalecem posições defensivas (RISK OFF).</div>
+          <div class="tooltip-info glow"><i class="fas fa-info-circle" style="margin-right: 4px;"></i><b>Condição do Mercado</b> indica se os investidores estão buscando risco (RISK ON) ou protegendo capital (RISK OFF). A força das Altcoins mostra o interesse fora do BTC.</div>
+        </div>
+        <div class="panel snapshot">
+          <h4><i class="fas fa-bolt" style="margin-right: 6px; color: #22d3ee;"></i>Último Sinal do Mercado</h4>
+          <div class="subtitle" id="snapshotSub">Atualizado em — Fonte: NeuralEdge AI</div>
+          <div id="signalPre" class="signal"></div>
+          <div class="actions">
+            <button id="btnTrain" class="btn-grad"><i class="fas fa-sync-alt" style="margin-right: 6px;"></i>Recalibrar Modelo</button>
+            <button id="btnPredict" class="btn-grad primary"><i class="fas fa-play" style="margin-right: 6px;"></i>Gerar Novo Sinal</button>
+          </div>
+        </div>
+        <div class="panel targets">
+          <h4><i class="fas fa-bullseye" style="margin-right: 6px; color: #a78bfa;"></i>Ativos-Alvo</h4>
+          <div id="targetsList" class="targets"></div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <h3><i class="fas fa-eye" style="margin-right: 6px; color: #22d3ee;"></i>Lista de Observação</h3>
+      <div class="grid" id="watchlistGrid"></div>
     </section>
   </main>
+
+  <!-- Modal de Configurações -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal">
+      <h3><i class="fas fa-sliders-h" style="margin-right: 6px; color: #22d3ee;"></i>Preferências do Usuário</h3>
+      <div class="field">
+        <label for="toggleEma"><i class="fas fa-chart-line" style="margin-right: 6px; color: #a78bfa;"></i>Mostrar EMA20 no gráfico</label>
+        <input type="checkbox" id="toggleEma" />
+      </div>
+      <div class="field">
+        <label for="toggleSparkRsi"><i class="fas fa-chart-bar" style="margin-right: 6px; color: #a78bfa;"></i>Mostrar RSI nas sparklines</label>
+        <input type="checkbox" id="toggleSparkRsi" />
+      </div>
+      <div class="field">
+        <label for="refreshInterval"><i class="fas fa-sync" style="margin-right: 6px; color: #a78bfa;"></i>Intervalo de atualização da lista (segundos)</label>
+        <input type="number" id="refreshInterval" min="10" max="600" step="10" />
+      </div>
+      <div class="actions">
+        <button id="btnCloseSettings" class="btn-secondary"><i class="fas fa-times" style="margin-right: 6px;"></i>Fechar</button>
+        <button id="btnSaveSettings" class="btn-primary"><i class="fas fa-save" style="margin-right: 6px;"></i>Salvar Alterações</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/app.js"></script>
 </body>
 </html>
-
