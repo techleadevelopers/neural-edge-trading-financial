@@ -10,6 +10,9 @@ def _bingx_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
     r = httpx.get(url, params=params, timeout=20)
     r.raise_for_status()
     data = r.json().get("data", [])
+    if not data:
+        # força fallback se BingX não retornar nada
+        raise ValueError("BingX klines vazio")
     # Expected: [ [openTime, open, high, low, close, volume], ... ]
     cols = ["open_time", "open", "high", "low", "close", "volume"]
     df = pd.DataFrame(data, columns=cols)
@@ -50,11 +53,18 @@ def _binance_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFram
 
 
 def get_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
+    symbol = str(symbol).upper()
     if EXCHANGE == "BINGX":
         try:
-            return _bingx_klines(symbol, interval, limit)
+            df = _bingx_klines(symbol, interval, limit)
         except Exception:
-            return _binance_klines(symbol, interval, limit)
+            df = _binance_klines(symbol, interval, limit)
     else:
-        return _binance_klines(symbol, interval, limit)
+        df = _binance_klines(symbol, interval, limit)
 
+    # Sanidade: garante ordem por tempo e tipos numéricos
+    if not df.empty:
+        df = df.sort_values("open_time").reset_index(drop=True)
+        for col in ["open", "high", "low", "close", "volume"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
