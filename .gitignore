@@ -1,0 +1,92 @@
+# ============================================================
+# NeuralEdge .gitignore (Python + FastAPI + Frontend)
+# ============================================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.log
+*.sqlite3
+*.db
+*.db-journal
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+.python-version
+
+# ---- Data / Models / Cache ----
+data/models/
+data/raw/
+data/processed/
+*.pkl
+*.joblib
+*.npy
+*.npz
+*.csv
+*.parquet
+logs/
+cache/
+tmp/
+temp/
+
+# ---- Environment / Secrets ----
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.json
+
+# ---- FastAPI / Uvicorn / Alembic ----
+alembic/versions/
+alembic.ini
+instance/
+*.sqlite
+
+# ---- Frontend (Next.js / React / Vite) ----
+frontend/node_modules/
+frontend/.next/
+frontend/.vercel/
+frontend/dist/
+frontend/build/
+frontend/.cache/
+frontend/yarn.lock
+frontend/package-lock.json
+
+# ---- JS/TS cache ----
+*.tsbuildinfo
+*.eslintcache
+
+# ---- IDE / Editor configs ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ---- Docker / Compose ----
+*.pid
+*.sock
+docker-compose.override.yml
+*.log
+*.tmp
+
+# ---- Jupyter / Notebooks ----
+.ipynb_checkpoints/
+*.ipynb
+
+# ---- Misc ----
+tests/__pycache__/
+__MACOSX/
