@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <title>Neural Edge – Signals</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="assets/style.css" />
+  <!-- Lightweight Charts -->
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <link rel="icon" href="data:," />
+  <style> nav a{margin-right:10px;color:#2563eb;text-decoration:none} nav a:hover{text-decoration:underline} </style>
+</head>
+<body>
+  <header>
+    <h1>Signals – NEAR/USDT</h1>
+    <div>
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="signals.html">Sinais</a>
+        <a href="settings.html">Config</a>
+      </nav>
+    </div>
+    <div id="status"></div>
+  </header>
+
+  <main>
+    <div id="chart" style="height: 420px;"></div>
+    <section id="signalBox" class="card">
+      <h3>Último Sinal</h3>
+      <pre id="signalPre">{carregando...}</pre>
+      <button id="btnTrain">Treinar baseline</button>
+      <button id="btnPredict">Predizer agora</button>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
+

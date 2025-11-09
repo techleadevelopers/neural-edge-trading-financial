@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <title>Neural Edge – Sinais</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:," />
+  <style> nav a{margin-right:10px;color:#2563eb;text-decoration:none} nav a:hover{text-decoration:underline} </style>
+</head>
+<body>
+  <header>
+    <h1>Últimos Sinais</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="signals.html">Sinais</a>
+      <a href="settings.html">Config</a>
+    </nav>
+  </header>
+  <main>
+    <section class="card">
+      <h3>Últimas 10 linhas (com indicadores)</h3>
+      <pre id="signalsPre">{carregando...}</pre>
+    </section>
+  </main>
+  <script>
+    const API = location.hostname.includes("localhost") ? "http://localhost:8000" : "/api";
+    async function loadSignals(){
+      try {
+        const r = await fetch(`${API}/data/signals?symbol=NEARUSDT&interval=1m&limit=300`);
+        const j = await r.json();
+        document.getElementById('signalsPre').textContent = JSON.stringify(j, null, 2);
+      } catch (e) {
+        document.getElementById('signalsPre').textContent = 'Erro ao carregar sinais: ' + e;
+      }
+    }
+    loadSignals();
+  </script>
+</body>
+</html>
+
