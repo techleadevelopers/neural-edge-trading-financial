@@ -3,7 +3,7 @@ async function renderTargets() {
   if (!box) return;
   // cria/atualiza sem limpar a UI (evita flicker)
   for (const sym of TARGETS) {
-    // garante row fixa para o sÌmbolo
+    // garante row fixa para o sÔøΩmbolo
     let row = targetsCache.get(sym);
     if (!row) {
       row = document.createElement('div');
@@ -34,16 +34,16 @@ async function renderTargets() {
       const c = pred.fused_final?.confidence ?? pred.fused?.confidence ?? 0;
       const rsi = num(pred.last?.rsi14,1);
       const volz = num(pred.last?.vol_z,2);
-      // aplica atualizaÁıes pontuais
+      // aplica atualizaÔøΩÔøΩes pontuais
       const poly = row.querySelector('polyline'); if (poly) { poly.setAttribute('points', points); poly.setAttribute('stroke', trend>=0?'#16a34a':'#ef4444'); }
       const trendDiv = row.querySelector('.trend'); if (trendDiv) { trendDiv.classList.toggle('up',trend>=0); trendDiv.classList.toggle('down',trend<0); trendDiv.textContent = `${trend>=0?'?? +':'?? '}${trend.toFixed(2)}%`; }
-      const confDiv = row.querySelector('[data-conf]'); if (confDiv) { confDiv.textContent = `Confian??a ${Math.round((c||0)*100)}%`; confDiv.title = `RSI ${rsi} ï VolZ ${volz}`; }
+      const confDiv = row.querySelector('[data-conf]'); if (confDiv) { confDiv.textContent = `Confian??a ${Math.round((c||0)*100)}%`; confDiv.title = `RSI ${rsi} ÔøΩ VolZ ${volz}`; }
     } catch {
-      const trendDiv = row.querySelector('.trend'); if (trendDiv) trendDiv.textContent = 'ó';
+      const trendDiv = row.querySelector('.trend'); if (trendDiv) trendDiv.textContent = 'ÔøΩ';
       const confDiv = row.querySelector('[data-conf]'); if (confDiv) confDiv.textContent = 'erro';
     }
   }
-}/ =========================================================
+}
 // Neural Edge Frontend ‚Äì Premium JS (com √çcones)
 // =========================================================
 
