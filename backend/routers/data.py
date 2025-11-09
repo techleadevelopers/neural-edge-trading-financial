@@ -13,6 +13,9 @@ def candles(
     limit: int = CANDLES_LIMIT,
 ):
     df = get_klines(symbol, interval, limit)
+    if df is None or df.empty:
+        return []
+    df["open_time"] = df["open_time"].astype(str)
     return df.to_dict(orient="records")
 
 
@@ -23,7 +26,8 @@ def signals(
     limit: int = CANDLES_LIMIT,
 ):
     df = get_klines(symbol, interval, limit)
+    if df is None or df.empty:
+        return []
     df = add_indicators(df)
     df = generate_short_signals(df)
     return df.tail(10).to_dict(orient="records")
-
