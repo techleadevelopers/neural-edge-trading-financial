@@ -712,8 +712,8 @@ pre {
 
 /* badge de confiança circular */
 .prob .conf::before {
-  content: "⚡";
-  margin-right: 4px;
+  content: "";
+  margin-right: 0;
 }
 .prob .conf {
   color: #22d3ee;
