@@ -1,10 +1,8 @@
 from fastapi import APIRouter
 from services.collector import get_klines
 from services.features import add_indicators
-from services.models import train_baseline, predict_proba_down
-from services.rules import fuse_model_and_rules
-from services.regime import compute_regime_snapshot
-from services.rules import fuse_with_regime
+from services.models import train_baseline, predict_proba_down, predict_proba_both, get_threshold, get_model_info, get_weights
+from services.rules import fuse_model_and_rules, fuse_with_regime
 from services.utils import DEFAULT_SYMBOL, DEFAULT_INTERVAL, CANDLES_LIMIT
 
 router = APIRouter()
@@ -25,7 +23,17 @@ def train(
         return {"ok": False, "error": "Poucos dados apos indicadores (min ~60)."}
     try:
         path = train_baseline(df2)
-        return {"ok": True, "model_path": path}
+        # carrega meta compacta do payload recem treinado
+        import joblib
+        payload = joblib.load(path)
+        meta = payload.get("meta", {})
+        return {
+            "ok": True,
+            "model_path": path,
+            "meta": meta,
+            "features": payload.get("features", []),
+            "threshold": payload.get("threshold"),
+        }
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -56,23 +64,33 @@ def predict(
         }
     last = df2.iloc[-1].to_dict()
 
-    # regra de euforia (teu short)
+    # regra de euforia
     from services.features import rule_short_sniper_row
 
     rule_flag = rule_short_sniper_row(last)
 
-    # prob de queda pelo modelo
-    # snapshot de regime (macro)
+    # prob de queda + regime (macro)
+    from services.regime import compute_regime_snapshot
+
     snap = compute_regime_snapshot()
 
     try:
-        prob_down = predict_proba_down(last)
-        fused = fuse_model_and_rules(prob_down, rule_flag)
+        probs = predict_proba_both(last)
+        wm, wn = get_weights()
+        p_model = probs.get("model") or 0.0
+        p_neural = probs.get("neural") if probs.get("neural") is not None else p_model
+        prob_down = wm * p_model + wn * p_neural
+        thr = get_threshold(0.55)
+        fused = fuse_model_and_rules(prob_down, rule_flag, thr)
         fused2 = fuse_with_regime(fused, snap["regime"], symbol)
         return {
             "symbol": symbol,
             "interval": interval,
             "prob_down": prob_down,
+            "prob_model": p_model,
+            "prob_neural": p_neural,
+            "weights": {"model": wm, "neural": wn},
+            "threshold": thr,
             "rule_short": rule_flag,
             "fused": fused,
             "fused_final": fused2,
@@ -80,16 +98,27 @@ def predict(
             "last": last,
         }
     except FileNotFoundError:
+        thr = 0.55
         fused = {"signal": "NEUTRAL", "confidence": 0.0}
         fused2 = fuse_with_regime(fused, snap["regime"], symbol)
         return {
             "symbol": symbol,
             "interval": interval,
             "prob_down": None,
+            "threshold": thr,
             "rule_short": rule_flag,
             "fused": fused,
             "fused_final": fused2,
             "regime": snap,
             "last": last,
-            "error": "Modelo não encontrado. Treine primeiro em /model/train.",
+            "error": "Modelo nao encontrado. Treine primeiro em /model/train.",
         }
+
+
+@router.get("/meta")
+def meta():
+    try:
+        info = get_model_info()
+        return {"ok": True, **info}
+    except FileNotFoundError:
+        return {"ok": False, "error": "Modelo nao encontrado. Treine em /model/train."}
