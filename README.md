@@ -1,7 +1,7 @@
 # Neural Edge Trading – Short Sniper
 
 
-Projeto pronto para operar sua visão: arquitetado simples e robusto, com FastAPI no backend, HTML puro no frontend e estratégia “Short Sniper” fundindo regras de euforia + modelo estatístico. Suba com um `docker-compose up --build` e comece a treinar e sinalizar.
+Projeto pronto para operar: arquitetado simples e robusto, com FastAPI no backend, HTML puro no frontend e estratégia “Short Sniper” fundindo regras de euforia + modelo estatístico. Suba com um `docker-compose up --build` e comece a treinar e sinalizar.
 
 ---
 
