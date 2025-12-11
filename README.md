@@ -1,12 +1,5 @@
 # Neural Edge Trading – Short Sniper
 
-> "eu ganho mais no short meu mano"
->
-> "eu ganho mais na queda man, às vezes pego uns long mais lá de baixo. Sou conservador nas estratégias. Quando vai pra topo, aquela euforia lá em cima é o short estratégico"
->
-> "mano peguei um crash doido… entrei short nos 125k do BTC, stop no 132k; bateu 126k e desceu pros 99k"
->
-> "cripto é perigoso, mas vantajoso — grandes escalas, lucros nucleares"
 
 Projeto pronto para operar sua visão: arquitetado simples e robusto, com FastAPI no backend, HTML puro no frontend e estratégia “Short Sniper” fundindo regras de euforia + modelo estatístico. Suba com um `docker-compose up --build` e comece a treinar e sinalizar.
 
