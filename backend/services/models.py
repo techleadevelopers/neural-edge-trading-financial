@@ -1,4 +1,5 @@
 import os
+import threading
 from datetime import datetime
 import numpy as np
 import pandas as pd
@@ -14,6 +15,25 @@ from sklearn import metrics
 MODEL_PATH = "data/models/baseline_logreg.pkl"
 FEE_SLIPPAGE = float(os.getenv("FEE_SLIPPAGE", "0"))
 
+_MODEL_CACHE = {"payload": None, "mtime": 0.0}
+_MODEL_LOCK = threading.Lock()
+
+
+def _load_payload():
+    with _MODEL_LOCK:
+        try:
+            mtime = os.path.getmtime(MODEL_PATH)
+        except FileNotFoundError:
+            raise
+        cached = _MODEL_CACHE.get("payload")
+        cached_mtime = _MODEL_CACHE.get("mtime")
+        if cached is not None and cached_mtime == mtime:
+            return cached
+        payload = joblib.load(MODEL_PATH)
+        _MODEL_CACHE["payload"] = payload
+        _MODEL_CACHE["mtime"] = mtime
+        return payload
+
 
 def build_training_frame(df: pd.DataFrame):
     df = df.dropna().copy()
@@ -25,12 +45,22 @@ def build_training_frame(df: pd.DataFrame):
         df["y_down"] = (df["fwd_ret_5"] < 0).astype(int)
     feats = [
         "rsi14",
-        "rsi_slope3", "rsi_z",
-        "ret_1", "ret_5", "ret_15",
-        "vol_z", "vol_ratio", "upper_wick",
-        "body_norm", "wick_ratio",
-        "ema_dist20", "ema_dist50",
-        "bb_bw", "bb_pos", "atr14", "atr_ratio",
+        "rsi_slope3",
+        "rsi_z",
+        "ret_1",
+        "ret_5",
+        "ret_15",
+        "vol_z",
+        "vol_ratio",
+        "upper_wick",
+        "body_norm",
+        "wick_ratio",
+        "ema_dist20",
+        "ema_dist50",
+        "bb_bw",
+        "bb_pos",
+        "atr14",
+        "atr_ratio",
     ]
     feats = [f for f in feats if f in df.columns]
     X = df[feats].values
@@ -48,10 +78,12 @@ def _tscv_best_c(X, y, Cs=(0.1, 1.0, 3.0), n_splits=5):
             ytr, yval = y[train_idx], y[val_idx]
             if len(np.unique(ytr)) < 2 or len(np.unique(yval)) < 2:
                 continue
-            pipe = Pipeline([
-                ("scaler", StandardScaler()),
-                ("lr", LogisticRegression(max_iter=400, class_weight="balanced", C=C)),
-            ])
+            pipe = Pipeline(
+                [
+                    ("scaler", StandardScaler()),
+                    ("lr", LogisticRegression(max_iter=400, class_weight="balanced", C=C)),
+                ]
+            )
             pipe.fit(Xtr, ytr)
             p = pipe.predict_proba(Xval)[:, 1]
             aucs.append(metrics.roc_auc_score(yval, p))
@@ -86,30 +118,49 @@ def train_baseline(df: pd.DataFrame) -> str:
     Xtr, ytr = X[:split], y[:split]
     Xval, yval = X[split:], y[split:]
 
-    base = Pipeline([
-        ("scaler", StandardScaler()),
-        ("lr", LogisticRegression(max_iter=400, class_weight="balanced", C=best_c)),
-    ])
+    base = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            ("lr", LogisticRegression(max_iter=400, class_weight="balanced", C=best_c)),
+        ]
+    )
     base.fit(Xtr, ytr)
 
-    # calibracao de probabilidade (sigmoid/Platt)
-    calibrator = CalibratedClassifierCV(base, cv="prefit", method="sigmoid")
-    calibrator.fit(Xval, yval)
+    calibrator = None
+    if len(np.unique(yval)) >= 2:
+        calibrator = CalibratedClassifierCV(base, cv="prefit", method="sigmoid")
+        calibrator.fit(Xval, yval)
 
     # MLP refiner (pequeno), calibrado no holdout
-    mlp_base = Pipeline([
-        ("scaler", StandardScaler()),
-        ("mlp", MLPClassifier(hidden_layer_sizes=(16, 16), activation="relu", max_iter=500, random_state=42))
-    ])
+    mlp_base = None
+    mlp_cal = None
     try:
+        mlp_base = Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "mlp",
+                    MLPClassifier(
+                        hidden_layer_sizes=(16, 16),
+                        activation="relu",
+                        max_iter=500,
+                        random_state=42,
+                    ),
+                ),
+            ]
+        )
         mlp_base.fit(Xtr, ytr)
-        mlp_cal = CalibratedClassifierCV(mlp_base, cv="prefit", method="sigmoid")
-        mlp_cal.fit(Xval, yval)
+        if len(np.unique(yval)) >= 2:
+            mlp_cal = CalibratedClassifierCV(mlp_base, cv="prefit", method="sigmoid")
+            mlp_cal.fit(Xval, yval)
     except Exception:
         mlp_base, mlp_cal = None, None
 
-    # threshold otimo no holdout
-    proba_val = calibrator.predict_proba(Xval)[:, 1]
+    proba_val = (
+        calibrator.predict_proba(Xval)[:, 1]
+        if calibrator is not None
+        else base.predict_proba(Xval)[:, 1]
+    )
     thr_best, f1_best = _best_threshold(yval, proba_val)
     try:
         auc_val = metrics.roc_auc_score(yval, proba_val)
@@ -137,30 +188,18 @@ def train_baseline(df: pd.DataFrame) -> str:
     }
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     joblib.dump(payload, MODEL_PATH)
+    with _MODEL_LOCK:
+        _MODEL_CACHE["payload"] = payload
+        _MODEL_CACHE["mtime"] = os.path.getmtime(MODEL_PATH)
     return MODEL_PATH
 
 
-def predict_proba_down(df_row: dict) -> float:
-    payload = joblib.load(MODEL_PATH)
-    feats = payload["features"]
-    x = np.array([[df_row.get(f, 0.0) for f in feats]])
-    if "calibrator" in payload and payload["calibrator"] is not None:
-        p = float(payload["calibrator"].predict_proba(x)[0][1])
-    else:
-        p = float(payload["model"].predict_proba(x)[0][1])
-    return p
-
-
-def predict_proba_both(df_row: dict) -> dict:
-    payload = joblib.load(MODEL_PATH)
-    feats = payload["features"]
-    x = np.array([[df_row.get(f, 0.0) for f in feats]])
-    # model (logreg pipeline)
+def _predict(payload, x: np.ndarray) -> tuple[float, float | None]:
     if payload.get("calibrator") is not None:
         p_model = float(payload["calibrator"].predict_proba(x)[0][1])
     else:
         p_model = float(payload["model"].predict_proba(x)[0][1])
-    # neural (mlp pipeline)
+
     p_neural = None
     if payload.get("calibrator_neural") is not None:
         try:
@@ -172,12 +211,28 @@ def predict_proba_both(df_row: dict) -> dict:
             p_neural = float(payload["model_neural"].predict_proba(x)[0][1])
         except Exception:
             p_neural = None
+    return p_model, p_neural
+
+
+def predict_proba_down(df_row: dict) -> float:
+    payload = _load_payload()
+    feats = payload["features"]
+    x = np.array([[df_row.get(f, 0.0) for f in feats]])
+    p_model, _ = _predict(payload, x)
+    return p_model
+
+
+def predict_proba_both(df_row: dict) -> dict:
+    payload = _load_payload()
+    feats = payload["features"]
+    x = np.array([[df_row.get(f, 0.0) for f in feats]])
+    p_model, p_neural = _predict(payload, x)
     return {"model": p_model, "neural": p_neural}
 
 
 def get_weights(default_model: float = 0.7, default_neural: float = 0.3) -> tuple[float, float]:
     try:
-        payload = joblib.load(MODEL_PATH)
+        payload = _load_payload()
         w = payload.get("weights") or {}
         wm = float(w.get("model", default_model))
         wn = float(w.get("neural", default_neural))
@@ -190,7 +245,7 @@ def get_weights(default_model: float = 0.7, default_neural: float = 0.3) -> tupl
 
 
 def get_model_info():
-    payload = joblib.load(MODEL_PATH)
+    payload = _load_payload()
     return {
         "threshold": payload.get("threshold"),
         "features": payload.get("features", []),
