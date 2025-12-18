@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from ta.momentum import RSIIndicator
-from ta.trend import EMAIndicator
+from ta.trend import EMAIndicator, ADXIndicator
 from ta.volatility import AverageTrueRange, BollingerBands
 
 
@@ -43,6 +43,10 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
         (df["high"] - df[["close", "open"]].max(axis=1))
         / (df["high"] - df["low"] + 1e-9)
     )
+    df["lower_wick"] = (
+        (df[["close", "open"]].min(axis=1) - df["low"])
+        / (df["high"] - df["low"] + 1e-9)
+    )
 
     # Corpo normalizado e razão de pavio superior
     if "open" in df and "high" in df and "low" in df:
@@ -54,10 +58,13 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     try:
         ema20 = EMAIndicator(close=df["close"], window=20).ema_indicator()
         ema50 = EMAIndicator(close=df["close"], window=50).ema_indicator()
+        ema200 = EMAIndicator(close=df["close"], window=200).ema_indicator()
         df["ema20"] = ema20
         df["ema50"] = ema50
+        df["ema200"] = ema200
         df["ema_dist20"] = (df["close"] - ema20) / (ema20 + 1e-9)
         df["ema_dist50"] = (df["close"] - ema50) / (ema50 + 1e-9)
+        df["ema200_slope"] = ema200.diff()
     except Exception:
         pass
 
@@ -77,6 +84,13 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
         atr = AverageTrueRange(high=df["high"], low=df["low"], close=df["close"], window=14)
         df["atr14"] = atr.average_true_range()
         df["atr_ratio"] = df["atr14"] / (df["close"].rolling(5).mean() + 1e-9)
+    except Exception:
+        pass
+
+    # ADX (força de tendência)
+    try:
+        adx = ADXIndicator(high=df["high"], low=df["low"], close=df["close"], window=14)
+        df["adx14"] = adx.adx()
     except Exception:
         pass
 
