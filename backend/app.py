@@ -2,7 +2,9 @@ import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from routers import health, data, model, backtest
+from routers import frontend
 from routers import regime
+from services.market_stream import start_stream
 from services.utils import API_ALLOW_ORIGINS
 from deps import verify_token
 
@@ -31,9 +33,15 @@ app.include_router(
     dependencies=[Depends(verify_token)],
 )
 app.include_router(backtest.router, prefix="/backtest", tags=["backtest"])
+app.include_router(frontend.router, prefix="/api", tags=["frontend"])
 app.include_router(
     regime.router,
     prefix="/regime",
     tags=["regime"],
     dependencies=[Depends(verify_token)],
 )
+
+
+@app.on_event("startup")
+def _start_ws_stream():
+    start_stream()
