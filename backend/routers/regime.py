@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from services.regime import (
     compute_regime_snapshot,
+    get_regime_snapshot_cached,
     train_regime,
     predict_regime,
     get_regime_history,
@@ -12,7 +13,8 @@ router = APIRouter()
 
 @router.get("/snapshot")
 def snapshot(symbol_btc: str = "BTCUSDT"):
-    return compute_regime_snapshot(symbol_btc)
+    # usa cache em memória para evitar chamadas pesadas repetidas
+    return get_regime_snapshot_cached(symbol_btc)
 
 
 @router.post("/train")
