@@ -7,6 +7,7 @@ import joblib
 import psycopg2
 
 from .collector import get_klines
+from .utils import REGIME_SNAPSHOT_TTL_SEC
 
 CG = os.getenv("COINGECKO_BASE", "https://api.coingecko.com/api/v3")
 FAPI = os.getenv("BINANCE_FAPI_BASE", "https://fapi.binance.com")
@@ -16,6 +17,7 @@ FUNDING_CACHE_TTL_SEC = int(os.getenv("REGIME_FUNDING_CACHE_TTL_SEC", "180"))
 # cache em memória (processo) para agregações pesadas do CoinGecko
 _MK_CACHE = {"ts": 0.0, "data": None}
 _FUND_CACHE = {"ts": 0.0, "data": None}
+_REGIME_CACHE = {"ts": 0.0, "snap": None}
 
 
 def _cg_global() -> dict:
@@ -297,6 +299,18 @@ def compute_regime_snapshot(symbol_btc: str = "BTCUSDT") -> dict:
 
     # Persistência opcional no Postgres
     _persist_regime_snapshot_pg(snap)
+    return snap
+
+
+def get_regime_snapshot_cached(symbol_btc: str = "BTCUSDT") -> dict:
+    now = time.time()
+    cached = _REGIME_CACHE.get("snap")
+    ts = _REGIME_CACHE.get("ts", 0.0)
+    if cached is not None and (now - ts) < REGIME_SNAPSHOT_TTL_SEC:
+        return cached
+    snap = compute_regime_snapshot(symbol_btc)
+    _REGIME_CACHE["snap"] = snap
+    _REGIME_CACHE["ts"] = now
     return snap
 
 
