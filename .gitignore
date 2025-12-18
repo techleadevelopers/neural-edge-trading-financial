@@ -19,6 +19,7 @@ env/
 ENV/
 .venv/
 .python-version
+.env.example
 
 # ---- Data / Models / Cache ----
 data/models/

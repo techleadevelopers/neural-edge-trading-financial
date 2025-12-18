@@ -244,26 +244,6 @@ def _build_signal(symbol: str, interval: str, limit: int) -> Dict:
         },
     }
 
-    return {
-        "id": _make_id(symbol, ts_ms),
-        "symbol": symbol,
-        "signal": mapped_signal,
-        "score": score,
-        "probability": prob_value,
-        "regime": fused_final.get("regime", "CHOP"),
-        "rsi": safe_float(last.get("rsi14")),
-        "vol_z": safe_float(last.get("vol_z")),
-        "upper_wick": safe_float(last.get("upper_wick")),
-        "ret_15": safe_float(last.get("ret_15")),
-        "cooldown_min": None,
-        "entry_price": entry,
-        "stop_loss": stop,
-        "target_price": target,
-        "reasons": reasons,
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts_ms / 1000)),
-        "strong": strong,
-    }
-
 
 def _get_cached_signals(interval: str, limit: int) -> List[Dict]:
     global _CACHED_SIGNALS, _LAST_UPDATE, _LAST_FETCH
