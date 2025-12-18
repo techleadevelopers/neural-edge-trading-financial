@@ -1,33 +1,56 @@
+import time
 import httpx
 import pandas as pd
-from .utils import EXCHANGE, BINGX_BASE_URL, BINANCE_BASE_URL
+from .utils import (
+    EXCHANGE,
+    BINGX_BASE_URL,
+    BINANCE_BASE_URL,
+    CANDLES_CACHE_SEC,
+    HTTP_RETRIES,
+    HTTP_BACKOFF_BASE,
+)
+
+# In-memory cache to reduce repeated HTTP calls per symbol/interval/limit
+_CANDLE_CACHE = {}
+
+
+def _get_with_retries(url: str, params: dict) -> httpx.Response:
+    last_err = None
+    for attempt in range(HTTP_RETRIES + 1):
+        try:
+            r = httpx.get(url, params=params, timeout=20)
+            r.raise_for_status()
+            return r
+        except Exception as e:
+            last_err = e
+            sleep = HTTP_BACKOFF_BASE * (2 ** attempt)
+            time.sleep(sleep)
+    # raise last error if all attempts fail
+    raise last_err
 
 
 def _bingx_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
-    # BingX swap v3 public kline
     url = f"{BINGX_BASE_URL}/openApi/swap/v3/quote/klines"
     params = {"symbol": symbol, "interval": interval, "limit": limit}
-    r = httpx.get(url, params=params, timeout=20)
-    r.raise_for_status()
+    r = _get_with_retries(url, params)
     data = r.json().get("data", [])
     if not data:
-        # força fallback se BingX não retornar nada
+        # force fallback if BingX returns empty
         raise ValueError("BingX klines vazio")
-    # Expected: [ [openTime, open, high, low, close, volume], ... ]
     cols = ["open_time", "open", "high", "low", "close", "volume"]
     df = pd.DataFrame(data, columns=cols)
     df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
-    df = df.astype({"open": float, "high": float, "low": float, "close": float, "volume": float})
+    df = df.astype(
+        {"open": float, "high": float, "low": float, "close": float, "volume": float}
+    )
     return df
 
 
 def _binance_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
     url = f"{BINANCE_BASE_URL}/api/v3/klines"
     params = {"symbol": symbol, "interval": interval, "limit": limit}
-    r = httpx.get(url, params=params, timeout=20)
-    r.raise_for_status()
+    r = _get_with_retries(url, params)
     raw = r.json()
-    # [ openTime, open, high, low, close, volume, closeTime, ... ]
     df = pd.DataFrame(
         raw,
         columns=[
@@ -54,6 +77,14 @@ def _binance_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFram
 
 def get_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
     symbol = str(symbol).upper()
+    key = (symbol, interval, int(limit))
+    now = time.time()
+    cached = _CANDLE_CACHE.get(key)
+    if cached:
+        ts, df_cached = cached
+        if (now - ts) < CANDLES_CACHE_SEC and df_cached is not None:
+            return df_cached.copy()
+
     if EXCHANGE == "BINGX":
         try:
             df = _bingx_klines(symbol, interval, limit)
@@ -62,9 +93,9 @@ def get_klines(symbol: str, interval: str, limit: int = 500) -> pd.DataFrame:
     else:
         df = _binance_klines(symbol, interval, limit)
 
-    # Sanidade: garante ordem por tempo e tipos numéricos
     if not df.empty:
         df = df.sort_values("open_time").reset_index(drop=True)
         for col in ["open", "high", "low", "close", "volume"]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+    _CANDLE_CACHE[key] = (now, df)
     return df
