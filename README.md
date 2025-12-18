@@ -1,10 +1,6 @@
 # Neural Edge Trading – Short Sniper
 
-> "eu ganho mais no short meu mano"
->
-> "eu ganho mais na queda man, às vezes pego uns long mais lá de baixo. Sou conservador nas estratégias. Quando vai pra topo, aquela euforia lá em cima é o short estratégico"
->
-> "mano peguei um crash doido… entrei short nos 125k do BTC, stop no 132k; bateu 126k e desceu pros 99k"
+> 
 >
 > "cripto é perigoso, mas vantajoso — grandes escalas, lucros nucleares"
 
@@ -84,8 +80,8 @@ Ajustes finos (opcional):
 - `GET /health/` → `{ ok: true }`
 - `GET /data/candles?symbol=NEARUSDT&interval=1m&limit=300`
 - `GET /data/signals?symbol=NEARUSDT&interval=1m&limit=300` → últimas 10 com indicadores e `short_signal`.
-- `POST /model/train?symbol=NEARUSDT&interval=1m&limit=500` → treina baseline, salva em `data/models`.
-- `POST /model/predict?symbol=NEARUSDT&interval=1m&limit=500` → calcula regra + prob e retorna a decisão fundida.
+- `POST /model/train?symbol=NEARUSDT&interval=1m&limit=500` → treina baseline, salva em `data/models`. (requer `Authorization: Bearer <AUTH_TOKEN>` se configurado)
+- `POST /model/predict?symbol=NEARUSDT&interval=1m&limit=500` → calcula regra + prob e retorna a decisão fundida. (requer `Authorization` se token ativo)
 
 Exemplos (curl):
 ```bash
@@ -112,6 +108,7 @@ curl -X POST "http://localhost:8000/model/predict?symbol=NEARUSDT&interval=1m&li
 cp .env.example .env
 # Windows (PowerShell)
 Copy-Item .env.example .env
+# (Opcional/segurança) Ajuste AUTH_TOKEN e API_ALLOW_ORIGINS
 ```
 
 2) Subir a stack
@@ -140,6 +137,10 @@ BINANCE_BASE_URL=https://api.binance.com
 DEFAULT_SYMBOL=NEARUSDT
 DEFAULT_INTERVAL=1m
 CANDLES_LIMIT=500
+CANDLES_CACHE_SEC=15
+HTTP_RETRIES=2
+HTTP_BACKOFF_BASE=0.6
+REGIME_SNAPSHOT_TTL_SEC=120
 PG_HOST=db
 PG_PORT=5432
 PG_DB=signals
@@ -186,6 +187,8 @@ Extras opcionais: `OPENAI_API_KEY`, `CRYPTOPANIC_TOKEN` (reservados p/ sentiment
 
 ## Segurança e Observabilidade
 - Chaves/API: use `.env` local, não commitar segredos.
+- Proteção básica: defina `AUTH_TOKEN` e limite `API_ALLOW_ORIGINS` (por padrão apenas localhost).
+- Backends protegidos: se `AUTH_TOKEN` estiver definido, rotas `/data`, `/model` e `/regime` exigem header `Authorization: Bearer <token>`.
 - Produção: restringir CORS, ativar logs estruturados e métricas (a adicionar).
 - Resiliência: coletores com `timeout` e fallback — ampliar com retries backoff exponencial.
 
